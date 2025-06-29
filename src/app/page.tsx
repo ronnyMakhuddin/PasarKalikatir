@@ -2,8 +2,6 @@ import { getProducts } from '@/lib/products';
 import { ProductCatalog } from '@/components/ProductCatalog';
 import { Suspense } from 'react';
 import { getFirebaseStatus } from '@/lib/firebase';
-import { PopularSellers } from '@/components/PopularSellers';
-import { PlatformStats } from '@/components/PlatformStats';
 
 export default async function Home() {
   const products = await getProducts();
@@ -37,28 +35,6 @@ export default async function Home() {
             Dukung ekonomi lokal dengan membeli langsung dari pedagang desa terpercaya kami.
           </p>
         </div>
-      </div>
-
-      {/* Platform Statistics */}
-      <div className="mb-8 md:mb-12">
-        <Suspense fallback={
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
-        }>
-          <PlatformStats products={products} />
-        </Suspense>
-      </div>
-
-      {/* Popular Sellers Section */}
-      <div className="mb-8 md:mb-12">
-        <Suspense fallback={
-          <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
-        }>
-          <PopularSellers products={products} />
-        </Suspense>
       </div>
 
       {/* Products Section */}
