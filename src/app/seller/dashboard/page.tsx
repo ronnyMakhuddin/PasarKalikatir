@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getProductsBySeller, deleteProduct, debugProduct, debugCurrentUser, updateProductStock } from '@/lib/products';
+import { getProductsBySeller, deleteProduct } from '@/lib/products';
 import { collection, getDocs, query, where, Firestore, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { updateProductStockAfterConfirmation } from '@/app/actions';
@@ -50,8 +50,6 @@ export default function SellerDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updatingStock, setUpdatingStock] = useState<string | null>(null);
-  const [stockInputs, setStockInputs] = useState<{ [key: string]: string }>({});
   const [updatingOrderStatus, setUpdatingOrderStatus] = useState<string | null>(null);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [stats, setStats] = useState({
@@ -285,88 +283,6 @@ export default function SellerDashboard() {
     } else {
       return <Badge variant="outline">Stok: {stock}</Badge>;
     }
-  };
-
-  const handleStockUpdate = async (productId: string) => {
-    const newStock = parseInt(stockInputs[productId] || '0');
-    
-    if (isNaN(newStock) || newStock < 0) {
-      toast({
-        title: "Input Tidak Valid",
-        description: "Stok harus berupa angka positif",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!userProfile?.uid) {
-      toast({
-        title: "Error",
-        description: "User tidak ditemukan",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUpdatingStock(productId);
-    
-    try {
-      console.log('Starting stock update for product:', productId);
-      console.log('Current user:', userProfile.uid);
-      console.log('New stock value:', newStock);
-
-      // Use the enhanced update function with debugging
-      await updateProductStock(productId, newStock, userProfile.uid);
-
-      // Update local state
-      setProducts(prev => prev.map(p => 
-        p.id === productId ? { ...p, stock: newStock } : p
-      ));
-
-      // Clear input
-      setStockInputs(prev => {
-        const newInputs = { ...prev };
-        delete newInputs[productId];
-        return newInputs;
-      });
-
-      toast({
-        title: "Stok Diperbarui",
-        description: `Stok produk berhasil diperbarui menjadi ${newStock}`,
-      });
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      
-      // Provide more specific error messages
-      let errorMessage = "Terjadi kesalahan saat memperbarui stok";
-      
-      if (error instanceof Error) {
-        if (error.message.includes('Permission denied')) {
-          errorMessage = "Anda tidak memiliki izin untuk mengubah produk ini. Pastikan Anda adalah penjual produk ini.";
-        } else if (error.message.includes('Product not found')) {
-          errorMessage = "Produk tidak ditemukan";
-        } else if (error.message.includes('Firebase not initialized')) {
-          errorMessage = "Koneksi Firebase tidak tersedia";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast({
-        title: "Gagal Memperbarui Stok",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingStock(null);
-    }
-  };
-
-  const handleStockInputChange = (productId: string, value: string) => {
-    setStockInputs(prev => ({
-      ...prev,
-      [productId]: value
-    }));
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -638,24 +554,6 @@ export default function SellerDashboard() {
                           {product.isActive ? "Aktif" : "Nonaktif"}
                         </Badge>
                         {getStockBadge(product.stock)}
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            placeholder="Stok baru"
-                            value={stockInputs[product.id || ''] || ''}
-                            onChange={(e) => handleStockInputChange(product.id || '', e.target.value)}
-                            className="w-20 h-8 text-sm"
-                            min="0"
-                          />
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleStockUpdate(product.id || '')}
-                            disabled={updatingStock === product.id}
-                          >
-                            {updatingStock === product.id ? 'Updating...' : 'Update'}
-                          </Button>
-                        </div>
                         <Button size="sm" variant="outline" onClick={() => router.push(`/seller/edit-product/${product.id}`)}>
                           Edit
                         </Button>
