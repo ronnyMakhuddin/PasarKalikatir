@@ -31,9 +31,6 @@ export default async function Home() {
           <p className="text-base md:text-lg text-foreground/80 max-w-3xl mx-auto px-4 mb-4">
             Temukan produk-produk segar dan kerajinan unik langsung dari tangan-tangan terampil warga desa kami.
           </p>
-          <p className="text-sm md:text-base text-foreground/60 max-w-2xl mx-auto px-4">
-            Dukung ekonomi lokal dengan membeli langsung dari pedagang desa terpercaya kami.
-          </p>
         </div>
       </div>
 

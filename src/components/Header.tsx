@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Leaf, ShoppingBasket, User, LogOut, Settings, Store } from 'lucide-react';
+import { Leaf, ShoppingBasket, User, LogOut, Settings, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/context/AuthContext';
@@ -54,6 +54,16 @@ export function Header() {
         </Link>
         
         <div className="flex items-center gap-2 md:gap-4">
+          {/* Navigation Links */}
+          <div className="hidden md:flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/pedagang">
+                <Users className="mr-2 h-4 w-4" />
+                Pedagang
+              </Link>
+            </Button>
+          </div>
+
           {/* Cart for buyers */}
           {!user && (
             <Button asChild variant="ghost" size="icon" className="relative">

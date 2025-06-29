@@ -1,5 +1,6 @@
 import { getProducts } from '@/lib/products';
 import { SellersCatalog } from '@/components/SellersCatalog';
+import { ProductCatalog } from '@/components/ProductCatalog';
 import { Suspense } from 'react';
 
 export default async function SellersPage() {

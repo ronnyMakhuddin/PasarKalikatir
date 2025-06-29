@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Store, X, Package } from 'lucide-react';
+import { ProductCard } from '@/components/ProductCard';
+import { Search, Store, X, Package, ArrowLeft } from 'lucide-react';
 
 interface SellersCatalogProps {
   products: Product[];
@@ -27,6 +28,9 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Semua');
   const [categories, setCategories] = useState<string[]>(['Semua']);
+
+  // Get selected seller from URL
+  const selectedSeller = searchParams.get('seller');
 
   // Initialize from URL parameters
   useEffect(() => {
@@ -79,11 +83,17 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
     });
   }, [sellers, searchTerm, selectedCategory]);
 
+  // Filter products for selected seller
+  const sellerProducts = useMemo(() => {
+    if (!selectedSeller) return [];
+    return products.filter(product => product.sellerName === selectedSeller);
+  }, [products, selectedSeller]);
+
   const handleSellerClick = (sellerName: string) => {
-    // Navigate to products filtered by this seller
+    // Stay on pedagang page with seller filter
     const searchParams = new URLSearchParams();
     searchParams.set('seller', sellerName);
-    router.push(`/?${searchParams.toString()}`);
+    router.push(`/pedagang?${searchParams.toString()}`);
   };
 
   const clearAllFilters = () => {
@@ -92,6 +102,78 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
     router.push('/pedagang');
   };
 
+  const clearSellerFilter = () => {
+    router.push('/pedagang');
+  };
+
+  // If seller is selected, show their products
+  if (selectedSeller) {
+    const seller = sellers.find(s => s.name === selectedSeller);
+    
+    return (
+      <div>
+        {/* Back to sellers button */}
+        <div className="mb-6">
+          <Button 
+            variant="outline" 
+            onClick={clearSellerFilter}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Kembali ke Daftar Pedagang
+          </Button>
+        </div>
+
+        {/* Seller info */}
+        {seller && (
+          <div className="mb-8">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Store className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl">{seller.name}</CardTitle>
+                    <p className="text-muted-foreground">
+                      {seller.productCount} produk • {seller.categories.join(', ')}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
+        )}
+
+        {/* Products section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Produk dari {selectedSeller}</h2>
+        </div>
+
+        {sellerProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+            {sellerProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Tidak ada produk
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Pedagang ini belum memiliki produk yang tersedia.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Show sellers list
   return (
     <div>
       <div className="mb-6 md:mb-8 space-y-4">
