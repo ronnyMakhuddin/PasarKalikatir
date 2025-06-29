@@ -1,4 +1,4 @@
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, Firestore } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, Firestore, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { Product } from '@/types';
 
@@ -193,4 +193,104 @@ export async function getProductsByCategory(category: string): Promise<Product[]
     console.error('Error fetching products by category:', error);
     return [];
   }
-} 
+}
+
+// Debug function to check product structure
+export const debugProduct = async (productId: string) => {
+  if (!db) {
+    console.error('Firebase not initialized');
+    return null;
+  }
+
+  try {
+    const productDoc = await getDoc(doc(db, 'products', productId));
+    if (productDoc.exists()) {
+      const data = productDoc.data();
+      console.log('Product Debug Info:', {
+        id: productId,
+        sellerId: data.sellerId,
+        name: data.name,
+        price: data.price,
+        stock: data.stock,
+        hasSellerId: !!data.sellerId,
+        sellerIdType: typeof data.sellerId
+      });
+      return data;
+    } else {
+      console.log('Product not found:', productId);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error debugging product:', error);
+    return null;
+  }
+};
+
+// Debug function to check current user
+export const debugCurrentUser = async (userId: string) => {
+  if (!db) {
+    console.error('Firebase not initialized');
+    return null;
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (userDoc.exists()) {
+      const data = userDoc.data();
+      console.log('User Debug Info:', {
+        uid: userId,
+        role: data.role,
+        isVerified: data.isVerified,
+        name: data.name,
+        email: data.email
+      });
+      return data;
+    } else {
+      console.log('User not found:', userId);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error debugging user:', error);
+    return null;
+  }
+};
+
+// Enhanced update product function with debugging
+export const updateProductStock = async (productId: string, newStock: number, userId: string) => {
+  if (!db) {
+    throw new Error('Firebase not initialized');
+  }
+
+  try {
+    // Debug current user
+    await debugCurrentUser(userId);
+    
+    // Debug product before update
+    const productData = await debugProduct(productId);
+    
+    if (!productData) {
+      throw new Error('Product not found');
+    }
+
+    // Check if user is the seller
+    if (productData.sellerId !== userId) {
+      console.error('Permission denied: User is not the product seller');
+      console.error('Product sellerId:', productData.sellerId);
+      console.error('Current userId:', userId);
+      throw new Error('Permission denied: You can only update your own products');
+    }
+
+    // Update the product
+    const productRef = doc(db, 'products', productId);
+    await updateDoc(productRef, {
+      stock: newStock,
+      updatedAt: new Date()
+    });
+
+    console.log('Product stock updated successfully');
+    return true;
+  } catch (error) {
+    console.error('Error updating product stock:', error);
+    throw error;
+  }
+}; 

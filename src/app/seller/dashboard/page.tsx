@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getProductsBySeller, deleteProduct } from '@/lib/products';
+import { getProductsBySeller, deleteProduct, debugProduct, debugCurrentUser, updateProductStock } from '@/lib/products';
 import { collection, getDocs, query, where, Firestore, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { updateProductStockAfterConfirmation } from '@/app/actions';
@@ -35,7 +35,7 @@ interface Order {
     sellerWhatsapp: string;
   }[];
   total: number;
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'rejected' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,7 +92,7 @@ export default function SellerDashboard() {
     const totalOrders = orders.length;
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
     const totalRevenue = orders
-      .filter(o => o.status === 'confirmed' || o.status === 'completed')
+      .filter(o => o.status === 'confirmed')
       .reduce((sum, order) => sum + order.total, 0);
 
     setStats({
@@ -266,8 +266,6 @@ export default function SellerDashboard() {
         return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Dikonfirmasi</Badge>;
       case 'rejected':
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Ditolak</Badge>;
-      case 'completed':
-        return <Badge variant="default"><CheckCircle className="h-3 w-3 mr-1" />Selesai</Badge>;
       case 'shipped':
         return <Badge variant="default"><Package className="h-3 w-3 mr-1" />Dikirim</Badge>;
       case 'delivered':
@@ -301,18 +299,24 @@ export default function SellerDashboard() {
       return;
     }
 
+    if (!userProfile?.uid) {
+      toast({
+        title: "Error",
+        description: "User tidak ditemukan",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUpdatingStock(productId);
     
     try {
-      if (!db) {
-        throw new Error("Firebase not configured");
-      }
+      console.log('Starting stock update for product:', productId);
+      console.log('Current user:', userProfile.uid);
+      console.log('New stock value:', newStock);
 
-      const productRef = doc(db as Firestore, 'products', productId);
-      await updateDoc(productRef, {
-        stock: newStock,
-        updatedAt: new Date(),
-      });
+      // Use the enhanced update function with debugging
+      await updateProductStock(productId, newStock, userProfile.uid);
 
       // Update local state
       setProducts(prev => prev.map(p => 
@@ -332,9 +336,25 @@ export default function SellerDashboard() {
       });
     } catch (error) {
       console.error('Error updating stock:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Terjadi kesalahan saat memperbarui stok";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Permission denied')) {
+          errorMessage = "Anda tidak memiliki izin untuk mengubah produk ini. Pastikan Anda adalah penjual produk ini.";
+        } else if (error.message.includes('Product not found')) {
+          errorMessage = "Produk tidak ditemukan";
+        } else if (error.message.includes('Firebase not initialized')) {
+          errorMessage = "Koneksi Firebase tidak tersedia";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Gagal Memperbarui Stok",
-        description: "Terjadi kesalahan saat memperbarui stok",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -379,11 +399,13 @@ export default function SellerDashboard() {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: 'confirmed' | 'rejected' | 'completed') => {
-    if (!db) return;
+  const updateOrderStatus = async (orderId: string, newStatus: 'confirmed' | 'rejected') => {
+    if (!db || !userProfile?.uid) return;
     
     setUpdatingOrderStatus(orderId);
     try {
+      console.log('Updating order status:', orderId, 'to:', newStatus, 'by seller:', userProfile.uid);
+      
       // Update order status
       await updateDoc(doc(db, 'orders', orderId), {
         status: newStatus,
@@ -400,7 +422,8 @@ export default function SellerDashboard() {
       // If order is confirmed, update product stock
       if (newStatus === 'confirmed') {
         try {
-          const stockResult = await updateProductStockAfterConfirmation(orderId);
+          console.log('Order confirmed, updating stock for seller:', userProfile.uid);
+          const stockResult = await updateProductStockAfterConfirmation(orderId, userProfile.uid);
           if (stockResult.success) {
             toast({
               title: "Status berhasil diperbarui",
@@ -424,7 +447,7 @@ export default function SellerDashboard() {
       } else {
         toast({
           title: "Status berhasil diperbarui",
-          description: `Pesanan ${newStatus === 'rejected' ? 'ditolak' : 'diselesaikan'}`,
+          description: `Pesanan ditolak`,
         });
       }
     } catch (error) {
@@ -740,23 +763,6 @@ export default function SellerDashboard() {
                                 )}
                               </Button>
                             </>
-                          )}
-                          {order.status === 'confirmed' && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => updateOrderStatus(order.id, 'completed')}
-                              disabled={updatingOrderStatus === order.id}
-                            >
-                              {updatingOrderStatus === order.id ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                  Selesai
-                                </div>
-                              ) : (
-                                'Selesai'
-                              )}
-                            </Button>
                           )}
                         </div>
                       </div>
