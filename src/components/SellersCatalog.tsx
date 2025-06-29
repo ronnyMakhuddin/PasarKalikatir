@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Store, Users, X, Package, TrendingUp, Star } from 'lucide-react';
+import { Search, Store, X, Package } from 'lucide-react';
 
 interface SellersCatalogProps {
   products: Product[];
@@ -16,8 +16,6 @@ interface SellersCatalogProps {
 interface SellerStats {
   name: string;
   productCount: number;
-  totalRevenue: number;
-  averageRating: number;
   categories: string[];
   products: Product[];
 }
@@ -52,8 +50,6 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
         sellerMap.set(product.sellerName, {
           name: product.sellerName,
           productCount: 0,
-          totalRevenue: 0,
-          averageRating: 4.5, // Placeholder rating
           categories: [],
           products: []
         });
@@ -61,7 +57,6 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
 
       const seller = sellerMap.get(product.sellerName)!;
       seller.productCount += 1;
-      seller.totalRevenue += product.price * product.stock; // Estimate revenue
       seller.products.push(product);
       
       if (!seller.categories.includes(product.category)) {
@@ -83,14 +78,6 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
       return matchesCategory && matchesSearch;
     });
   }, [sellers, searchTerm, selectedCategory]);
-
-  const formatRupiah = (price: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
 
   const handleSellerClick = (sellerName: string) => {
     // Navigate to products filtered by this seller
@@ -200,12 +187,6 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
                       <CardTitle className="text-lg font-semibold line-clamp-1">
                         {seller.name}
                       </CardTitle>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                        <span className="text-xs text-muted-foreground">
-                          {seller.averageRating.toFixed(1)}
-                        </span>
-                      </div>
                     </div>
                   </div>
                   {index < 3 && (
@@ -222,16 +203,6 @@ export function SellersCatalog({ products }: SellersCatalogProps) {
                     <div className="flex items-center gap-1">
                       <Package className="h-3 w-3" />
                       <span className="font-medium">{seller.productCount}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Estimasi Pendapatan</span>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3 text-green-600" />
-                      <span className="font-medium text-green-600">
-                        {formatRupiah(seller.totalRevenue)}
-                      </span>
                     </div>
                   </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from 'next/link';
-import { Leaf, ShoppingBasket, User, LogOut, Settings, Store, Users, BarChart3 } from 'lucide-react';
+import { Leaf, ShoppingBasket, User, LogOut, Settings, Store, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/context/AuthContext';
@@ -60,12 +60,6 @@ export function Header() {
               <Link href="/pedagang">
                 <Users className="mr-2 h-4 w-4" />
                 Pedagang
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/statistik">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Statistik
               </Link>
             </Button>
           </div>

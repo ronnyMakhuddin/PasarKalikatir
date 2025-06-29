@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Users, UserCheck, AlertCircle, ShoppingBag, CheckCircle, XCircle, Eye, 
   TrendingUp, DollarSign, Package, ShoppingCart, Clock, MapPin, Phone,
-  Calendar, Store, FileText, BarChart3, Activity
+  Calendar, Store, FileText, BarChart3, Activity, PieChart, Target
 } from 'lucide-react';
 
 // Force dynamic rendering to prevent static generation issues
@@ -55,7 +55,6 @@ interface Order {
   id: string;
   customer: {
     name: string;
-    whatsapp: string;
   };
   items: {
     id: string;
@@ -345,6 +344,53 @@ export default function AdminDashboard() {
     }
   };
 
+  // Calculate detailed statistics
+  const getDetailedStats = () => {
+    const categoryCount: { [key: string]: number } = {};
+    const sellerStats: { [key: string]: { count: number; revenue: number } } = {};
+    const priceRanges = {
+      '0-10k': products.filter(p => p.price <= 10000).length,
+      '10k-50k': products.filter(p => p.price > 10000 && p.price <= 50000).length,
+      '50k-100k': products.filter(p => p.price > 50000 && p.price <= 100000).length,
+      '100k+': products.filter(p => p.price > 100000).length,
+    };
+
+    // Category analysis
+    products.forEach(p => {
+      categoryCount[p.category] = (categoryCount[p.category] || 0) + 1;
+    });
+    const topCategories = Object.entries(categoryCount)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    // Seller analysis
+    products.forEach(p => {
+      if (!sellerStats[p.sellerName]) {
+        sellerStats[p.sellerName] = { count: 0, revenue: 0 };
+      }
+      sellerStats[p.sellerName].count += 1;
+    });
+
+    // Add revenue from orders
+    orders.forEach(o => {
+      if (o.status === 'completed') {
+        o.items.forEach(item => {
+          if (sellerStats[item.sellerName]) {
+            sellerStats[item.sellerName].revenue += item.price * item.quantity;
+          }
+        });
+      }
+    });
+
+    const topSellers = Object.entries(sellerStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    return { topCategories, topSellers, priceRanges };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -359,6 +405,8 @@ export default function AdminDashboard() {
   if (!userProfile || userProfile.role !== 'admin') {
     return null;
   }
+
+  const detailedStats = getDetailedStats();
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -399,12 +447,12 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Produk</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalProducts}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeProducts} aktif, {stats.lowStockProducts} stok menipis
+              {stats.activeProducts} aktif, {stats.lowStockProducts} stok rendah
             </p>
           </CardContent>
         </Card>
@@ -428,260 +476,323 @@ export default function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatRupiah(stats.totalRevenue)}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {formatRupiah(stats.totalRevenue)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Rata-rata: {formatRupiah(stats.averageOrderValue)}
+              Rata-rata {formatRupiah(stats.averageOrderValue)} per pesanan
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Orders */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Pesanan Terbaru
-          </CardTitle>
-          <CardDescription>
-            {recentOrders.length} pesanan terbaru
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentOrders.length === 0 ? (
-            <p className="text-center text-gray-500 py-8">
-              Belum ada pesanan
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium">#{order.id.slice(-8)}</h3>
-                      {getStatusBadge(order.status)}
-                    </div>
-                    <p className="text-sm text-gray-600">{order.customer.name} - {order.customer.whatsapp}</p>
-                    <p className="text-sm text-gray-600">
-                      {order.items.length} item • {formatRupiah(order.total)}
-                    </p>
-                    <p className="text-xs text-gray-500">{formatDate(order.createdAt)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">{formatRupiah(order.total)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
-      <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pending" className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            Menunggu Verifikasi ({pendingSellers.length})
-          </TabsTrigger>
-          <TabsTrigger value="verified" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            Penjual Terverifikasi ({sellers.length})
-          </TabsTrigger>
-          <TabsTrigger value="products" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Produk ({products.length})
-          </TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sellers">Penjual</TabsTrigger>
+          <TabsTrigger value="orders">Pesanan</TabsTrigger>
+          <TabsTrigger value="statistics">Statistik</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pending" className="space-y-4">
+        <TabsContent value="overview" className="space-y-6">
+          {/* Recent Orders */}
           <Card>
             <CardHeader>
-              <CardTitle>Penjual Menunggu Verifikasi</CardTitle>
-              <CardDescription>
-                Verifikasi penjual baru untuk mengaktifkan akun mereka
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Pesanan Terbaru
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {pendingSellers.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
-                  Tidak ada penjual yang menunggu verifikasi
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {pendingSellers.map((seller) => (
-                    <div key={seller.uid} className="border rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold">{seller.name}</h3>
-                            <Badge variant="secondary">Pending</Badge>
-                          </div>
-                          <p className="text-gray-600 mb-1">{seller.email}</p>
-                          {seller.phone && (
-                            <p className="text-gray-600 mb-1">
-                              <Phone className="h-3 w-3 inline mr-1" />
-                              {seller.phone}
-                            </p>
-                          )}
-                          {seller.storeName && (
-                            <p className="text-gray-600 mb-1">
-                              <Store className="h-3 w-3 inline mr-1" />
-                              {seller.storeName}
-                            </p>
-                          )}
-                          {seller.address && (
-                            <p className="text-gray-600 mb-1">
-                              <MapPin className="h-3 w-3 inline mr-1" />
-                              {seller.address}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-500">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            Terdaftar: {formatDate(seller.createdAt)}
-                          </p>
+              <div className="space-y-4">
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => (
+                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">{order.customer.name}</span>
+                          {getStatusBadge(order.status)}
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleVerifySeller(seller.uid)}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Verifikasi
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRejectSeller(seller.uid)}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Tolak
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => router.push(`/admin/seller/${seller.uid}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Detail
-                          </Button>
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {order.items.length} item • {formatRupiah(order.total)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(order.createdAt)}
+                        </p>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/admin/orders/${order.id}`)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Detail
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Belum ada pesanan
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="verified" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Penjual Terverifikasi</CardTitle>
-              <CardDescription>
-                Daftar penjual yang sudah diverifikasi dan aktif
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {sellers.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
-                  Belum ada penjual yang terverifikasi
-                </p>
-              ) : (
+          {/* Pending Sellers */}
+          {pendingSellers.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-orange-500" />
+                  Penjual Menunggu Verifikasi ({pendingSellers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  {sellers.map((seller) => (
-                    <div key={seller.uid} className="border rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold">{seller.name}</h3>
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Terverifikasi
-                            </Badge>
-                          </div>
-                          <p className="text-gray-600 mb-1">{seller.email}</p>
-                          {seller.phone && (
-                            <p className="text-gray-600 mb-1">
-                              <Phone className="h-3 w-3 inline mr-1" />
-                              {seller.phone}
-                            </p>
-                          )}
-                          {seller.storeName && (
-                            <p className="text-gray-600 mb-1">
-                              <Store className="h-3 w-3 inline mr-1" />
-                              {seller.storeName}
-                            </p>
-                          )}
-                          {seller.address && (
-                            <p className="text-gray-600 mb-1">
-                              <MapPin className="h-3 w-3 inline mr-1" />
-                              {seller.address}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-500">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            Terdaftar: {formatDate(seller.createdAt)}
-                          </p>
+                  {pendingSellers.slice(0, 5).map((seller) => (
+                    <div key={seller.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">{seller.name}</span>
+                          <Badge variant="secondary">Pending</Badge>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => router.push(`/admin/seller/${seller.uid}`)}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Lihat Detail
+                        <p className="text-sm text-muted-foreground">{seller.email}</p>
+                        {seller.storeName && (
+                          <p className="text-sm text-muted-foreground">
+                            Toko: {seller.storeName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleVerifySeller(seller.uid)}
+                        >
+                          <UserCheck className="h-4 w-4 mr-1" />
+                          Verifikasi
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRejectSeller(seller.uid)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Tolak
                         </Button>
                       </div>
                     </div>
                   ))}
+                  {pendingSellers.length > 5 && (
+                    <div className="text-center">
+                      <Button variant="outline" onClick={() => router.push('/admin/sellers')}>
+                        Lihat Semua ({pendingSellers.length})
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="sellers" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Semua Penjual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {sellers.map((seller) => (
+                  <div key={seller.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{seller.name}</span>
+                        <Badge variant="default">Terverifikasi</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{seller.email}</p>
+                      {seller.storeName && (
+                        <p className="text-sm text-muted-foreground">
+                          Toko: {seller.storeName}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Bergabung: {formatDate(seller.createdAt)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/admin/seller/${seller.uid}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Detail
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="products" className="space-y-4">
+        <TabsContent value="orders" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Semua Produk</CardTitle>
-              <CardDescription>
-                Daftar semua produk yang tersedia di platform
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5" />
+                Semua Pesanan
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {products.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
-                  Belum ada produk yang tersedia
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {products.map((product) => (
-                    <div key={product.id} className="border rounded-lg p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="text-lg font-semibold">{product.name}</h3>
-                            <Badge variant={product.isActive ? "default" : "secondary"}>
-                              {product.isActive ? "Aktif" : "Nonaktif"}
-                            </Badge>
-                            <Badge variant={product.stock === 0 ? "destructive" : product.stock < 10 ? "destructive" : "outline"}>
-                              Stok: {product.stock}
-                            </Badge>
-                          </div>
-                          <p className="text-gray-600 mb-1">Penjual: {product.sellerName}</p>
-                          <p className="text-gray-600 mb-1">Kategori: {product.category}</p>
-                          <p className="text-lg font-bold text-green-600">{formatRupiah(product.price)}</p>
-                          <p className="text-sm text-gray-500">
-                            <Calendar className="h-3 w-3 inline mr-1" />
-                            Ditambahkan: {formatDate(product.createdAt)}
-                          </p>
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{order.customer.name}</span>
+                        {getStatusBadge(order.status)}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {order.items.length} item • {formatRupiah(order.total)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(order.createdAt)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/admin/orders/${order.id}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Detail
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="statistics" className="space-y-6">
+          {/* Category Analysis */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5" />
+                Analisis Kategori Produk
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {detailedStats.topCategories.map((category, index) => (
+                  <div key={category.category} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline">#{index + 1}</Badge>
+                      <span className="font-medium">{category.category}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{category.count} produk</div>
+                      <div className="text-xs text-muted-foreground">
+                        {((category.count / stats.totalProducts) * 100).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Top Sellers */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Store className="h-5 w-5" />
+                Top 10 Penjual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {detailedStats.topSellers.map((seller, index) => (
+                  <div key={seller.name} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={index < 3 ? "default" : "outline"}>
+                        #{index + 1}
+                      </Badge>
+                      <span className="font-medium">{seller.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">{seller.count} produk</div>
+                      <div className="text-xs text-green-600">
+                        {formatRupiah(seller.revenue)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Price Analysis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Distribusi Harga
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Object.entries(detailedStats.priceRanges).map(([range, count]) => (
+                    <div key={range} className="flex items-center justify-between p-3 border rounded-lg">
+                      <span className="font-medium">{range}</span>
+                      <div className="text-right">
+                        <div className="font-semibold">{count} produk</div>
+                        <div className="text-xs text-muted-foreground">
+                          {((count / stats.totalProducts) * 100).toFixed(1)}%
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Analisis Harga
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>Rata-rata Harga</span>
+                    <span className="font-semibold text-green-600">
+                      {formatRupiah(products.length > 0 ? products.reduce((sum, p) => sum + p.price, 0) / products.length : 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Harga Tertinggi</span>
+                    <span className="font-semibold text-red-600">
+                      {formatRupiah(Math.max(...products.map(p => p.price)))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Harga Terendah</span>
+                    <span className="font-semibold text-blue-600">
+                      {formatRupiah(Math.min(...products.map(p => p.price)))}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

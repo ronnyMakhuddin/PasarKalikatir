@@ -41,7 +41,7 @@ export default async function Home() {
       <div className="mb-8">
         <div className="text-center mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-            Semua Produk
+            Cari Produk
           </h2>
           <p className="text-muted-foreground">
             Jelajahi berbagai produk dari pedagang terpercaya kami
