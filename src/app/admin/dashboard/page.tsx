@@ -487,9 +487,8 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="sellers">Penjual</TabsTrigger>
           <TabsTrigger value="orders">Pesanan</TabsTrigger>
           <TabsTrigger value="statistics">Statistik</TabsTrigger>
         </TabsList>
@@ -594,48 +593,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="sellers" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Semua Penjual
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {sellers.map((seller) => (
-                  <div key={seller.uid} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{seller.name}</span>
-                        <Badge variant="default">Terverifikasi</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{seller.email}</p>
-                      {seller.storeName && (
-                        <p className="text-sm text-muted-foreground">
-                          Toko: {seller.storeName}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Bergabung: {formatDate(seller.createdAt)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => router.push(`/admin/seller/${seller.uid}`)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Detail
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-6">

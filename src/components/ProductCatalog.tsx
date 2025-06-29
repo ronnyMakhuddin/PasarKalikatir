@@ -52,31 +52,31 @@ export function ProductCatalog({ products }: ProductCatalogProps) {
   return (
     <div>
       <div className="mb-6 md:mb-8 space-y-4">
-        {/* Search Input */}
-        <div className="relative w-full max-w-md mx-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Cari nama produk..."
-            className="pl-10 h-10 md:h-11"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
+        {/* Search and Filter in one line */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-center">
+          {/* Search Input */}
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Cari nama produk..."
+              className="pl-10 h-10 md:h-11"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
 
-        {/* Category Filter */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium text-center text-muted-foreground">Filter Kategori</h3>
+          {/* Category Filter */}
           <div className="flex gap-2 flex-wrap justify-center">
             {categories.map(category => (
               <Button
