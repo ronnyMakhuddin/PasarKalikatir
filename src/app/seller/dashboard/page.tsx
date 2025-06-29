@@ -162,6 +162,9 @@ export default function SellerDashboard() {
               }
             });
             
+            // Sort orders by createdAt (newest first)
+            ordersData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            
             console.log('Filtered orders for seller:', ordersData);
             setOrders(ordersData);
           } catch (ordersError) {
@@ -328,12 +331,16 @@ export default function SellerDashboard() {
         updatedAt: serverTimestamp(),
       });
       
-      // Refresh orders data by updating local state
-      setOrders(prev => prev.map(order => 
-        order.id === orderId 
-          ? { ...order, status: newStatus, updatedAt: new Date() }
-          : order
-      ));
+      // Refresh orders data by updating local state and maintain sorting
+      setOrders(prev => {
+        const updatedOrders = prev.map(order => 
+          order.id === orderId 
+            ? { ...order, status: newStatus, updatedAt: new Date() }
+            : order
+        );
+        // Maintain sorting by createdAt (newest first)
+        return updatedOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      });
       
       // If order is confirmed, update product stock
       if (newStatus === 'confirmed') {
