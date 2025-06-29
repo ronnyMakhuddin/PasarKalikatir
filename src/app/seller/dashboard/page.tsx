@@ -162,10 +162,20 @@ export default function SellerDashboard() {
               }
             });
             
-            // Sort orders by createdAt (newest first)
-            ordersData.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            // Sort orders by createdAt (newest first) - includes both date and time
+            ordersData.sort((a, b) => {
+              const timeA = a.createdAt.getTime();
+              const timeB = b.createdAt.getTime();
+              console.log(`Sorting: Order ${a.id} (${a.createdAt.toISOString()}) vs Order ${b.id} (${b.createdAt.toISOString()})`);
+              return timeB - timeA; // Descending: newest first
+            });
             
-            console.log('Filtered orders for seller:', ordersData);
+            console.log('Sorted orders (newest first):', ordersData.map(o => ({
+              id: o.id,
+              createdAt: o.createdAt.toISOString(),
+              status: o.status
+            })));
+            
             setOrders(ordersData);
           } catch (ordersError) {
             console.error('Error fetching orders (seller might not be verified):', ordersError);
@@ -338,8 +348,18 @@ export default function SellerDashboard() {
             ? { ...order, status: newStatus, updatedAt: new Date() }
             : order
         );
-        // Maintain sorting by createdAt (newest first)
-        return updatedOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        // Maintain sorting by createdAt (newest first) - includes both date and time
+        const sortedOrders = updatedOrders.sort((a, b) => {
+          const timeA = a.createdAt.getTime();
+          const timeB = b.createdAt.getTime();
+          return timeB - timeA; // Descending: newest first
+        });
+        console.log('Orders re-sorted after status update:', sortedOrders.map(o => ({
+          id: o.id,
+          createdAt: o.createdAt.toISOString(),
+          status: o.status
+        })));
+        return sortedOrders;
       });
       
       // If order is confirmed, update product stock
