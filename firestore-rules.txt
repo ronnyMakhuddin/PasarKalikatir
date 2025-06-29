@@ -1,0 +1,283 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+    match /users/{userId} {
+      // Allow read if user is reading their own profile OR if admin is reading any profile
+      allow read: if request.auth != null && (
+        request.auth.uid == userId ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Allow create if user is creating their own profile
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow update if user is updating their own profile OR if admin is updating any profile
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Allow delete if admin is deleting any profile
+      allow delete: if request.auth != null &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // PRODUCTS COLLECTION
+    // ========================================
+    match /products/{productId} {
+      // Anyone can read products (for public catalog)
+      allow read: if true;
+      
+      // Allow create if user is verified seller or admin
+      allow create: if request.auth != null && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isVerified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Allow update/delete if user is the product owner OR if admin
+      allow update, delete: if request.auth != null && (
+        resource.data.sellerId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    // ========================================
+    // ORDERS COLLECTION
+    // ========================================
+    match /orders/{orderId} {
+      // Allow read if user is verified seller or admin
+      allow read: if request.auth != null && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isVerified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Anyone can create orders (customers don't need to be logged in)
+      allow create: if true;
+      
+      // Allow update if user is verified seller or admin
+      allow update: if request.auth != null && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isVerified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Allow delete if admin
+      allow delete: if request.auth != null &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // CATEGORIES COLLECTION
+    // ========================================
+    match /categories/{categoryId} {
+      // Anyone can read categories
+      allow read: if true;
+      
+      // Only admin can create/update/delete categories
+      allow create, update, delete: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // NOTIFICATIONS COLLECTION
+    // ========================================
+    match /notifications/{notificationId} {
+      // Users can read their own notifications
+      allow read: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if user is creating their own notification OR if admin
+      allow create: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Allow update/delete if user is the notification owner OR if admin
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    // ========================================
+    // SETTINGS COLLECTION
+    // ========================================
+    match /settings/{settingId} {
+      // Anyone can read settings
+      allow read: if true;
+      
+      // Only admin can modify settings
+      allow create, update, delete: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // ANALYTICS COLLECTION
+    // ========================================
+    match /analytics/{analyticsId} {
+      // Only admin can read/write analytics
+      allow read, write: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // BACKUP COLLECTION
+    // ========================================
+    match /backups/{backupId} {
+      // Only admin can access backups
+      allow read, write: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // CART COLLECTION (if needed for persistent carts)
+    // ========================================
+    match /carts/{cartId} {
+      // Users can read/write their own cart
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if user is creating their own cart
+      allow create: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    // ========================================
+    // REVIEWS COLLECTION (if needed for product reviews)
+    // ========================================
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Only authenticated users can create reviews
+      allow create: if request.auth != null;
+      
+      // Users can update/delete their own reviews OR admin can manage all
+      allow update, delete: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+    
+    // ========================================
+    // PAYMENTS COLLECTION (if needed for payment tracking)
+    // ========================================
+    match /payments/{paymentId} {
+      // Users can read their own payments
+      allow read: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if user is creating their own payment
+      allow create: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Only admin can update/delete payments
+      allow update, delete: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // SHIPPING COLLECTION (if needed for shipping info)
+    // ========================================
+    match /shipping/{shippingId} {
+      // Users can read their own shipping info
+      allow read: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Allow create if user is creating their own shipping info
+      allow create: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+      
+      // Users can update their own shipping info OR admin can manage all
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Only admin can delete shipping info
+      allow delete: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // INVENTORY COLLECTION (if needed for stock tracking)
+    // ========================================
+    match /inventory/{inventoryId} {
+      // Verified sellers can read their own inventory
+      allow read: if request.auth != null && (
+        resource.data.sellerId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Verified sellers can create their own inventory
+      allow create: if request.auth != null && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isVerified == true) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Verified sellers can update their own inventory OR admin can manage all
+      allow update: if request.auth != null && (
+        resource.data.sellerId == request.auth.uid ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+      
+      // Only admin can delete inventory
+      allow delete: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // REPORTS COLLECTION (if needed for admin reports)
+    // ========================================
+    match /reports/{reportId} {
+      // Only admin can read/write reports
+      allow read, write: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ========================================
+    // LOGS COLLECTION (if needed for system logs)
+    // ========================================
+    match /logs/{logId} {
+      // Only admin can read/write logs
+      allow read, write: if request.auth != null && 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+  }
+} 
