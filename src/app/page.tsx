@@ -28,21 +28,6 @@ export default async function Home() {
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold font-headline text-primary mb-3 md:mb-4 leading-tight">
             Selamat Datang di Pasar Kalikatir
           </h1>
-          <p className="text-base md:text-lg text-foreground/80 max-w-3xl mx-auto px-4 mb-4">
-            Temukan produk-produk segar dan kerajinan unik langsung dari tangan-tangan terampil warga desa kami.
-          </p>
-        </div>
-      </div>
-
-      {/* Products Section */}
-      <div className="mb-8">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-            Cari Produk
-          </h2>
-          <p className="text-muted-foreground">
-            Jelajahi berbagai produk dari pedagang terpercaya kami
-          </p>
         </div>
       </div>
 
