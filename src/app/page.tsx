@@ -7,8 +7,6 @@ export const dynamic = 'force-dynamic';
 import { ProductCatalog } from '@/components/ProductCatalog';
 import { getProducts } from '@/lib/products';
 import { getFirebaseStatus } from '@/lib/firebase';
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import type { Product } from '@/types';
 
 export default function Home() {
@@ -82,20 +80,6 @@ export default function Home() {
             Temukan produk-produk segar dan kerajinan unik langsung dari tangan-tangan terampil warga desa kami.
           </p>
         </div>
-        
-        {/* Refresh Button */}
-        <div className="flex justify-center">
-          <Button
-            onClick={fetchProducts}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Memuat...' : 'Refresh Produk'}
-          </Button>
-        </div>
       </div>
 
       {/* Loading State */}
@@ -120,12 +104,6 @@ export default function Home() {
             <p className="text-sm text-muted-foreground mb-4">
               {error}
             </p>
-            <button
-              onClick={fetchProducts}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Coba Lagi
-            </button>
           </div>
         </div>
       )}
