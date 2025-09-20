@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, Firestore, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, where, Firestore, orderBy, limit, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,8 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Users, UserCheck, AlertCircle, ShoppingBag, CheckCircle, XCircle, Eye, 
   TrendingUp, DollarSign, Package, ShoppingCart, Clock, MapPin, Phone,
-  Calendar, Store, FileText, BarChart3, Activity, PieChart, Target
+  Calendar, Store, FileText, BarChart3, Activity, PieChart, Target, Trash2,
+  UserX, AlertTriangle
 } from 'lucide-react';
 
 // Force dynamic rendering to prevent static generation issues
@@ -277,6 +278,65 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteSeller = async (sellerId: string, sellerName: string) => {
+    if (!db) {
+      toast({
+        title: "Error",
+        description: "Firebase tidak dikonfigurasi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Apakah Anda yakin ingin menghapus penjual "${sellerName}"?\n\n` +
+      `Tindakan ini akan menghapus:\n` +
+      `- Akun penjual\n` +
+      `- Semua produk yang dimiliki penjual\n` +
+      `- Data terkait lainnya\n\n` +
+      `Tindakan ini TIDAK DAPAT DIBATALKAN!`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Use batch to ensure atomicity
+      const batch = writeBatch(db as Firestore);
+
+      // 1. Get all products by this seller
+      const productsRef = collection(db as Firestore, 'products');
+      const productsQuery = query(productsRef, where('sellerId', '==', sellerId));
+      const productsSnapshot = await getDocs(productsQuery);
+
+      // 2. Delete all products
+      productsSnapshot.forEach((productDoc) => {
+        batch.delete(productDoc.ref);
+      });
+
+      // 3. Delete the seller
+      const sellerRef = doc(db as Firestore, 'users', sellerId);
+      batch.delete(sellerRef);
+
+      // 4. Commit the batch
+      await batch.commit();
+
+      toast({
+        title: "Berhasil",
+        description: `Penjual "${sellerName}" dan ${productsSnapshot.size} produknya berhasil dihapus!`,
+      });
+      
+      fetchAllData(); // Refresh data
+    } catch (error) {
+      console.error('Error deleting seller:', error);
+      toast({
+        title: "Error",
+        description: `Gagal menghapus penjual: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatDate = (date: any) => {
     if (!date) return 'Tidak diketahui';
     
@@ -487,8 +547,9 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sellers">Kelola Penjual</TabsTrigger>
           <TabsTrigger value="orders">Pesanan</TabsTrigger>
           <TabsTrigger value="statistics">Statistik</TabsTrigger>
         </TabsList>
@@ -593,6 +654,155 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="sellers" className="space-y-6">
+          {/* All Sellers Management */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Kelola Semua Penjual ({sellers.length + pendingSellers.length})
+              </CardTitle>
+              <CardDescription>
+                Verifikasi, tolak, atau hapus penjual. Hapus penjual akan menghapus semua produk mereka.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Verified Sellers */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-green-600" />
+                    Penjual Terverifikasi ({sellers.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {sellers.map((seller) => (
+                      <div key={seller.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{seller.name}</span>
+                            <Badge variant="default" className="bg-green-100 text-green-800">
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              Terverifikasi
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{seller.email}</p>
+                          {seller.storeName && (
+                            <p className="text-sm text-muted-foreground">
+                              Toko: {seller.storeName}
+                            </p>
+                          )}
+                          {seller.phone && (
+                            <p className="text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3 inline mr-1" />
+                              {seller.phone}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Bergabung: {formatDate(seller.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/admin/seller/${seller.uid}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteSeller(seller.uid, seller.name)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Hapus
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {sellers.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">
+                        Belum ada penjual terverifikasi
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Pending Sellers */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                    Penjual Menunggu Verifikasi ({pendingSellers.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {pendingSellers.map((seller) => (
+                      <div key={seller.uid} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium">{seller.name}</span>
+                            <Badge variant="secondary">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Menunggu
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{seller.email}</p>
+                          {seller.storeName && (
+                            <p className="text-sm text-muted-foreground">
+                              Toko: {seller.storeName}
+                            </p>
+                          )}
+                          {seller.phone && (
+                            <p className="text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3 inline mr-1" />
+                              {seller.phone}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Daftar: {formatDate(seller.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleVerifySeller(seller.uid)}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Verifikasi
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRejectSeller(seller.uid)}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Tolak
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteSeller(seller.uid, seller.name)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Hapus
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {pendingSellers.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">
+                        Tidak ada penjual yang menunggu verifikasi
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="orders" className="space-y-6">
