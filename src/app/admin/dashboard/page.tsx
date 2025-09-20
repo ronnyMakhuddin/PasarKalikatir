@@ -485,6 +485,10 @@ export default function AdminDashboard() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Laporan Lengkap
             </Button>
+            <Button variant="outline" onClick={() => router.push('/admin/cleanup')}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Pembersihan Data
+            </Button>
           </div>
         </div>
       </div>
